@@ -182,7 +182,7 @@ export default function MaintenanceQuotePrototype() {
 
   const submitToSheet = async () => {
     try {
-      const response = await fetch("https://script.google.com/macros/s/AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw/exec", {
+      const response = await fetch("PASTE_YOUR_GOOGLE_SCRIPT_URL_HERE", {
         method: "POST",
         body: payload,
       });
@@ -252,12 +252,7 @@ export default function MaintenanceQuotePrototype() {
                 <div className="mt-2 text-xl font-black text-green-600">{gbp.format(totals.profit)}</div>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-green-600 font-black text-white">?</div>
-              <h3 className="font-black">Need help?</h3>
-              <p className="mt-2 text-sm text-slate-600">Contact the office if you need help creating your quote.</p>
-              <p className="mt-3 font-black text-green-600">02920 123456</p>
-            </div>
+            
           </aside>
 
           <section className="grid gap-6">
@@ -374,11 +369,7 @@ export default function MaintenanceQuotePrototype() {
                     <div className="rounded-xl bg-green-600 p-4 text-white"><div className="text-xs font-black uppercase">Final quote total</div><div className="text-3xl font-black">{gbp.format(totals.grandTotal)}</div></div>
                   </div>
                 </div>
-                <details className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <summary className="cursor-pointer font-bold text-green-700">Spreadsheet/API payload preview</summary>
-                  <pre className="mt-4 max-h-80 overflow-auto text-xs text-slate-600">{payload}</pre>
-                </details>
-                <Button onClick={downloadPayload}>Download submission payload</Button>
+                
               </Panel>
             )}
 
@@ -394,9 +385,9 @@ export default function MaintenanceQuotePrototype() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo compact />
           <div className="text-sm text-slate-500 md:text-right">
-            <div>© 2024 WeFix Properties</div>
+            <div>© 2026 WeFix Properties</div>
             <div>Professional quotes for property repair</div>
-            <div className="mt-2 font-black text-green-600">02920 123456</div>
+            
           </div>
         </div>
         <div className="h-2 bg-green-600" />
