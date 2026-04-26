@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-const SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw/exec";
+const SHEET_WEB_APP_URL = "AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw";
 
 const gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const makeId = () => `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -185,13 +185,13 @@ export default function MaintenanceQuotePrototype() {
     setIsSubmitting(true);
 
     try {
+      const formData = new URLSearchParams();
+      formData.append("payload", payload);
+
       await fetch(SHEET_WEB_APP_URL, {
         method: "POST",
         mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8",
-        },
-        body: payload,
+        body: formData,
       });
 
       alert("Quote submitted successfully");
