@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 
+const SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw/exec";
+
 const gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const makeId = () => `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -99,26 +101,24 @@ function SummaryRow({ label, value }) {
 }
 
 export default function MaintenanceQuotePrototype() {
-  const [step, setStep] = useState(2);
+  const [step, setStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     address: "",
     postcode: "",
     jobNumber: "",
     workItems: [emptyWork()],
     observations: "",
-    materials: [
-      { id: makeId(), description: "Roofing Slate 500x250", qty: 10, unit: "each", unitCost: 2.5, margin: 30 },
-      { id: makeId(), description: "Ridge Tile", qty: 5, unit: "each", unitCost: 3, margin: 30 },
-      { id: makeId(), description: "Lead Flashing Code 4", qty: 3, unit: "metre", unitCost: 8, margin: 30 },
-    ],
+    materials: [emptyMaterial()],
     skilledRate: 250,
     skilledDays: 1,
-    skilledOperatives: 2,
+    skilledOperatives: 1,
     unskilledRate: 160,
     unskilledDays: 0,
     unskilledOperatives: 0,
     labourMargin: 30,
-    prelims: [{ id: makeId(), description: "Waste disposal / parking / protection", amount: 150, margin: 0 }],
+    prelims: [emptyPrelim()],
     vat: true,
     pricingApproach: "Competitive — sharp but commercially safe",
     adminNotes: "",
@@ -168,35 +168,38 @@ export default function MaintenanceQuotePrototype() {
     submittedAt: new Date().toISOString(),
   };
 
-  const payload = JSON.stringify(cleanQuoteData, null, 2);
-
-  const downloadPayload = () => {
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${form.jobNumber || "quote"}-submission.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const payload = JSON.stringify(cleanQuoteData);
 
   const submitToSheet = async () => {
+    if (!form.address.trim()) {
+      alert("Please add the property address before submitting.");
+      setStep(0);
+      return;
+    }
+
+    if (SHEET_WEB_APP_URL.includes("REPLACE_WITH")) {
+      alert("Google Sheet URL is not set in App.jsx.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      const response = await fetch("PASTE_YOUR_GOOGLE_SCRIPT_URL_HERE", {
+      await fetch(SHEET_WEB_APP_URL, {
         method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
         body: payload,
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        alert("Quote submitted successfully");
-      } else {
-        alert("Submission failed");
-      }
+      alert("Quote submitted successfully");
     } catch (error) {
       alert("Error submitting quote");
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -205,10 +208,7 @@ export default function MaintenanceQuotePrototype() {
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo />
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={downloadPayload}>Save Draft</Button>
-            <Button onClick={() => setStep(5)}>Preview Quote →</Button>
-          </div>
+          <Button onClick={() => setStep(5)}>Preview Quote →</Button>
         </div>
       </div>
 
@@ -228,31 +228,28 @@ export default function MaintenanceQuotePrototype() {
         </nav>
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="grid gap-5 self-start">
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-black uppercase text-slate-950">Job Summary</h3>
-              <SummaryRow label="Job Number" value={form.jobNumber || "JOB-2024-0051"} />
-              <SummaryRow label="Address" value={form.address || "12 High Street, Cardiff, CF10 1AA"} />
-              
-              <div className="mt-5 border-t border-slate-200 pt-4">
-                <Metric label="Materials inc margin" value={gbp.format(totals.materialSell)} highlight />
-                <Metric label="Labour inc margin" value={gbp.format(totals.labourSell)} highlight />
-                <Metric label="Prelims & other" value={gbp.format(totals.prelimSell)} highlight />
-              </div>
-              <div className="mt-4 border-t border-slate-200 pt-4">
-                <Metric label="Subtotal" value={gbp.format(totals.subtotal)} />
-                <Metric label="VAT 20%" value={gbp.format(totals.vat)} />
-              </div>
-              <div className="-mx-5 mt-4 bg-green-600 p-5 text-white">
-                <div className="text-xs font-black uppercase">Quote Total Inc VAT</div>
-                <div className="mt-2 text-3xl font-black">{gbp.format(totals.grandTotal)}</div>
-              </div>
-              <div className="pt-5">
-                <div className="text-xs uppercase text-slate-500">Est. profit</div>
-                <div className="mt-2 text-xl font-black text-green-600">{gbp.format(totals.profit)}</div>
-              </div>
+          <aside className="self-start rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-4 text-sm font-black uppercase text-slate-950">Job Summary</h3>
+            <SummaryRow label="Job Number" value={form.jobNumber || "Not entered"} />
+            <SummaryRow label="Address" value={form.address || "Not entered"} />
+
+            <div className="mt-5 border-t border-slate-200 pt-4">
+              <Metric label="Materials inc margin" value={gbp.format(totals.materialSell)} highlight />
+              <Metric label="Labour inc margin" value={gbp.format(totals.labourSell)} highlight />
+              <Metric label="Prelims & other" value={gbp.format(totals.prelimSell)} highlight />
             </div>
-            
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <Metric label="Subtotal" value={gbp.format(totals.subtotal)} />
+              <Metric label="VAT 20%" value={gbp.format(totals.vat)} />
+            </div>
+            <div className="-mx-5 mt-4 bg-green-600 p-5 text-white">
+              <div className="text-xs font-black uppercase">Quote Total Inc VAT</div>
+              <div className="mt-2 text-3xl font-black">{gbp.format(totals.grandTotal)}</div>
+            </div>
+            <div className="pt-5">
+              <div className="text-xs uppercase text-slate-500">Est. profit</div>
+              <div className="mt-2 text-xl font-black text-green-600">{gbp.format(totals.profit)}</div>
+            </div>
           </aside>
 
           <section className="grid gap-6">
@@ -351,7 +348,7 @@ export default function MaintenanceQuotePrototype() {
             )}
 
             {step === 5 && (
-              <Panel title="Review & Submit" hint="Final version will submit this directly into Google Sheets or Excel Online for admin processing.">
+              <Panel title="Review & Submit" hint="Review the quote summary, then submit to the admin spreadsheet.">
                 <div className="grid gap-5 lg:grid-cols-3">
                   <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
                     <SummaryRow label="Job" value={form.jobNumber || "Not entered"} />
@@ -369,13 +366,12 @@ export default function MaintenanceQuotePrototype() {
                     <div className="rounded-xl bg-green-600 p-4 text-white"><div className="text-xs font-black uppercase">Final quote total</div><div className="text-3xl font-black">{gbp.format(totals.grandTotal)}</div></div>
                   </div>
                 </div>
-                
               </Panel>
             )}
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <Button variant="secondary" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>← Back</Button>
-              {step < steps.length - 1 ? <Button onClick={() => setStep(Math.min(steps.length - 1, step + 1))}>Next: {steps[step + 1]} →</Button> : <Button onClick={submitToSheet}>Submit to spreadsheet</Button>}
+              {step < steps.length - 1 ? <Button onClick={() => setStep(Math.min(steps.length - 1, step + 1))}>Next: {steps[step + 1]} →</Button> : <Button onClick={submitToSheet} disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit to spreadsheet"}</Button>}
             </div>
           </section>
         </div>
@@ -385,9 +381,8 @@ export default function MaintenanceQuotePrototype() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo compact />
           <div className="text-sm text-slate-500 md:text-right">
-            <div>© 2026 WeFix Properties</div>
+            <div>© 2024 WeFix Properties</div>
             <div>Professional quotes for property repair</div>
-            
           </div>
         </div>
         <div className="h-2 bg-green-600" />
