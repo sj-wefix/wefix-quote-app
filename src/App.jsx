@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-const SHEET_WEB_APP_URL = "AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw";
+const SHEET_WEB_APP_URL = "Ahttps://script.google.com/macros/s/AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw/exec";
 
 const gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const makeId = () => `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
