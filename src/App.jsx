@@ -185,14 +185,31 @@ export default function MaintenanceQuotePrototype() {
     setIsSubmitting(true);
 
     try {
-      const formData = new URLSearchParams();
-      formData.append("payload", payload);
+      const iframeName = "hidden-sheet-submit-frame";
+      let iframe = document.querySelector(`iframe[name="${iframeName}"]`);
 
-      await fetch(SHEET_WEB_APP_URL, {
-        method: "POST",
-        mode: "no-cors",
-        body: formData,
-      });
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.name = iframeName;
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+      }
+
+      const formElement = document.createElement("form");
+      formElement.method = "POST";
+      formElement.action = SHEET_WEB_APP_URL;
+      formElement.target = iframeName;
+      formElement.style.display = "none";
+
+      const payloadInput = document.createElement("input");
+      payloadInput.type = "hidden";
+      payloadInput.name = "payload";
+      payloadInput.value = payload;
+
+      formElement.appendChild(payloadInput);
+      document.body.appendChild(formElement);
+      formElement.submit();
+      document.body.removeChild(formElement);
 
       alert("Quote submitted successfully");
     } catch (error) {
