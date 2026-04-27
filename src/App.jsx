@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from "react";
 
-const SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyszVcji_ROGPJrXs7qIIvioUGO5RUfOL9DB4PFnyYu_EzLECZfNCTcuH5bK8DubdTgjw/exec";
-
 const gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const makeId = () => `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -9,7 +7,7 @@ const emptyMaterial = () => ({ id: makeId(), description: "", qty: 1, unit: "eac
 const emptyPrelim = () => ({ id: makeId(), description: "", amount: 0, margin: 0 });
 const emptyWork = () => ({ id: makeId(), priority: "Recommended", description: "" });
 
-const steps = ["Job Details", "Scope of Works", "Materials", "Labour", "Prelims & Other", "Review & Submit"];
+const steps = ["Job Details", "Scope of Works", "Materials", "Labour", "Prelims & Other", "Screenshot Review"];
 
 function toNumber(value) {
   const n = Number(value);
@@ -27,7 +25,6 @@ function Button({ children, onClick, disabled, variant = "primary" }) {
   const styles = {
     primary: "bg-green-600 text-white hover:bg-green-700 shadow-sm",
     secondary: "border border-green-600 bg-white text-green-700 hover:bg-green-50",
-    ghost: "bg-white text-slate-500 hover:bg-slate-50",
     danger: "border border-slate-200 bg-white text-slate-500 hover:bg-red-50 hover:text-red-600",
   };
 
@@ -95,15 +92,35 @@ function SummaryRow({ label, value }) {
   return (
     <div className="border-b border-slate-200 py-4 last:border-b-0">
       <div className="mb-1 text-xs text-slate-500">{label}</div>
-      <div className="text-sm font-semibold text-slate-950">{value}</div>
+      <div className="whitespace-pre-wrap text-sm font-semibold text-slate-950">{value || "Not entered"}</div>
+    </div>
+  );
+}
+
+function QuoteSection({ title, children }) {
+  return (
+    <section className="break-inside-avoid rounded-xl border border-slate-200 bg-white p-5">
+      <h3 className="mb-4 border-b border-slate-200 pb-3 text-lg font-black text-slate-950">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function QuoteTable({ headers, children }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <table className="w-full min-w-[720px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <tr>{headers.map((h) => <th key={h} className="px-3 py-3">{h}</th>)}</tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
     </div>
   );
 }
 
 export default function MaintenanceQuotePrototype() {
   const [step, setStep] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [form, setForm] = useState({
     address: "",
     postcode: "",
@@ -121,7 +138,6 @@ export default function MaintenanceQuotePrototype() {
     prelims: [emptyPrelim()],
     vat: true,
     pricingApproach: "Competitive — sharp but commercially safe",
-    adminNotes: "",
   });
 
   const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -146,91 +162,24 @@ export default function MaintenanceQuotePrototype() {
     return { materialCost, materialSell, labourCost, labourSell, prelimCost, prelimSell, subtotal, vat, grandTotal, totalCost, profit };
   }, [form]);
 
-  const cleanQuoteData = {
-    address: form.address,
-    postcode: form.postcode,
-    jobNumber: form.jobNumber,
-    workItems: form.workItems,
-    observations: form.observations,
-    materials: form.materials,
-    skilledRate: form.skilledRate,
-    skilledDays: form.skilledDays,
-    skilledOperatives: form.skilledOperatives,
-    unskilledRate: form.unskilledRate,
-    unskilledDays: form.unskilledDays,
-    unskilledOperatives: form.unskilledOperatives,
-    labourMargin: form.labourMargin,
-    prelims: form.prelims,
-    vat: form.vat,
-    pricingApproach: form.pricingApproach,
-    adminNotes: form.adminNotes,
-    totals,
-    submittedAt: new Date().toISOString(),
-  };
-
-  const payload = JSON.stringify(cleanQuoteData);
-
-  const submitToSheet = async () => {
-    if (!form.address.trim()) {
-      alert("Please add the property address before submitting.");
-      setStep(0);
-      return;
-    }
-
-    if (SHEET_WEB_APP_URL.includes("REPLACE_WITH")) {
-      alert("Google Sheet URL is not set in App.jsx.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const iframeName = "hidden-sheet-submit-frame";
-      let iframe = document.querySelector(`iframe[name="${iframeName}"]`);
-
-      if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.name = iframeName;
-        iframe.style.display = "none";
-        document.body.appendChild(iframe);
-      }
-
-      const formElement = document.createElement("form");
-      formElement.method = "POST";
-      formElement.action = SHEET_WEB_APP_URL;
-      formElement.target = iframeName;
-      formElement.style.display = "none";
-
-      const payloadInput = document.createElement("input");
-      payloadInput.type = "hidden";
-      payloadInput.name = "payload";
-      payloadInput.value = payload;
-
-      formElement.appendChild(payloadInput);
-      document.body.appendChild(formElement);
-      formElement.submit();
-      document.body.removeChild(formElement);
-
-      alert("Quote submitted successfully");
-    } catch (error) {
-      alert("Error submitting quote");
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const printQuote = () => window.print();
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
-      <div className="border-b border-slate-200 bg-white">
+      <style>{`@media print { .no-print { display: none !important; } body { background: white; } main { background: white !important; } }`}</style>
+
+      <div className="border-b border-slate-200 bg-white no-print">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo />
-          <Button onClick={() => setStep(5)}>Preview Quote →</Button>
+          <div className="flex gap-3">
+            <Button variant="secondary" onClick={printQuote}>Print / Save PDF</Button>
+            <Button onClick={() => setStep(5)}>Screenshot Review →</Button>
+          </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <nav className="mb-8 grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-0">
+        <nav className="mb-8 grid grid-cols-2 gap-2 md:grid-cols-6 md:gap-0 no-print">
           {steps.map((label, index) => {
             const done = index < step;
             const active = index === step;
@@ -244,30 +193,31 @@ export default function MaintenanceQuotePrototype() {
           })}
         </nav>
 
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="self-start rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 text-sm font-black uppercase text-slate-950">Job Summary</h3>
-            <SummaryRow label="Job Number" value={form.jobNumber || "Not entered"} />
-            <SummaryRow label="Address" value={form.address || "Not entered"} />
-
-            <div className="mt-5 border-t border-slate-200 pt-4">
-              <Metric label="Materials inc margin" value={gbp.format(totals.materialSell)} highlight />
-              <Metric label="Labour inc margin" value={gbp.format(totals.labourSell)} highlight />
-              <Metric label="Prelims & other" value={gbp.format(totals.prelimSell)} highlight />
-            </div>
-            <div className="mt-4 border-t border-slate-200 pt-4">
-              <Metric label="Subtotal" value={gbp.format(totals.subtotal)} />
-              <Metric label="VAT 20%" value={gbp.format(totals.vat)} />
-            </div>
-            <div className="-mx-5 mt-4 bg-green-600 p-5 text-white">
-              <div className="text-xs font-black uppercase">Quote Total Inc VAT</div>
-              <div className="mt-2 text-3xl font-black">{gbp.format(totals.grandTotal)}</div>
-            </div>
-            <div className="pt-5">
-              <div className="text-xs uppercase text-slate-500">Est. profit</div>
-              <div className="mt-2 text-xl font-black text-green-600">{gbp.format(totals.profit)}</div>
-            </div>
-          </aside>
+        <div className={step === 5 ? "grid gap-6" : "grid gap-6 lg:grid-cols-[280px_1fr]"}>
+          {step !== 5 && (
+            <aside className="self-start rounded-xl border border-slate-200 bg-white p-5 shadow-sm no-print">
+              <h3 className="mb-4 text-sm font-black uppercase text-slate-950">Job Summary</h3>
+              <SummaryRow label="Job Number" value={form.jobNumber || "Not entered"} />
+              <SummaryRow label="Address" value={form.address || "Not entered"} />
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <Metric label="Materials inc margin" value={gbp.format(totals.materialSell)} highlight />
+                <Metric label="Labour inc margin" value={gbp.format(totals.labourSell)} highlight />
+                <Metric label="Prelims & other" value={gbp.format(totals.prelimSell)} highlight />
+              </div>
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <Metric label="Subtotal" value={gbp.format(totals.subtotal)} />
+                <Metric label="VAT 20%" value={gbp.format(totals.vat)} />
+              </div>
+              <div className="-mx-5 mt-4 bg-green-600 p-5 text-white">
+                <div className="text-xs font-black uppercase">Quote Total Inc VAT</div>
+                <div className="mt-2 text-3xl font-black">{gbp.format(totals.grandTotal)}</div>
+              </div>
+              <div className="pt-5">
+                <div className="text-xs uppercase text-slate-500">Est. profit</div>
+                <div className="mt-2 text-xl font-black text-green-600">{gbp.format(totals.profit)}</div>
+              </div>
+            </aside>
+          )}
 
           <section className="grid gap-6">
             {step === 0 && (
@@ -304,9 +254,7 @@ export default function MaintenanceQuotePrototype() {
               <Panel title="Materials" hint="Add all materials required for this job. Margin is applied per line." action={<Button variant="secondary" onClick={() => setForm((p) => ({ ...p, materials: [...p.materials, emptyMaterial()] }))}>+ Add Material</Button>}>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[900px] text-left">
-                    <thead className="text-xs uppercase text-slate-500">
-                      <tr><th className="py-3">Description</th><th>Qty</th><th>Unit</th><th>Unit cost (£)</th><th>Margin (%)</th><th>Line total (£)</th><th /></tr>
-                    </thead>
+                    <thead className="text-xs uppercase text-slate-500"><tr><th className="py-3">Description</th><th>Qty</th><th>Unit</th><th>Unit cost (£)</th><th>Margin (%)</th><th>Line total (£)</th><th /></tr></thead>
                     <tbody>
                       {form.materials.map((item) => {
                         const lineCost = toNumber(item.qty) * toNumber(item.unitCost);
@@ -327,11 +275,6 @@ export default function MaintenanceQuotePrototype() {
                   </table>
                 </div>
                 <button type="button" onClick={() => setForm((p) => ({ ...p, materials: [...p.materials, emptyMaterial()] }))} className="rounded-lg border border-dashed border-slate-300 py-4 text-sm font-bold text-green-700 hover:bg-green-50">+ Add Material</button>
-                <div className="grid overflow-hidden rounded-xl border border-slate-200 md:grid-cols-3">
-                  <div className="p-5 text-center"><div className="text-xs text-slate-500">Materials Cost Ex Margin</div><div className="mt-2 font-black">{gbp.format(totals.materialCost)}</div></div>
-                  <div className="border-t border-slate-200 p-5 text-center md:border-l md:border-t-0"><div className="text-xs text-slate-500">Total Margin</div><div className="mt-2 font-black">{gbp.format(totals.materialSell - totals.materialCost)}</div></div>
-                  <div className="bg-green-50 p-5 text-center"><div className="text-xs font-bold text-slate-700">Materials Total Inc Margin</div><div className="mt-2 text-xl font-black text-green-600">{gbp.format(totals.materialSell)}</div></div>
-                </div>
               </Panel>
             )}
 
@@ -365,36 +308,111 @@ export default function MaintenanceQuotePrototype() {
             )}
 
             {step === 5 && (
-              <Panel title="Review & Submit" hint="Review the quote summary, then submit to the admin spreadsheet.">
-                <div className="grid gap-5 lg:grid-cols-3">
-                  <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
-                    <SummaryRow label="Job" value={form.jobNumber || "Not entered"} />
-                    <SummaryRow label="Address" value={`${form.address || "Not entered"} ${form.postcode || ""}`} />
-                    <SummaryRow label="Works" value={`${form.workItems.length} work item(s)`} />
-                    <SummaryRow label="Materials" value={`${form.materials.length} line(s)`} />
-                    <SummaryRow label="VAT" value={form.vat ? "20% included" : "No VAT"} />
+              <div className="grid gap-5">
+                <div className="flex flex-col gap-4 rounded-xl border border-green-200 bg-green-50 p-5 md:flex-row md:items-center md:justify-between no-print">
+                  <div>
+                    <h2 className="text-xl font-black text-green-900">Screenshot / Email Review</h2>
+                    <p className="text-sm text-green-800">This page contains the full quote breakdown. Screenshot this page or use Print / Save PDF, then email it to admin.</p>
                   </div>
-                  <div className="grid gap-3 rounded-xl border border-green-600/20 bg-white p-5">
-                    <Metric label="Materials" value={gbp.format(totals.materialSell)} highlight />
-                    <Metric label="Labour" value={gbp.format(totals.labourSell)} highlight />
-                    <Metric label="Prelims" value={gbp.format(totals.prelimSell)} highlight />
-                    <Metric label="Subtotal" value={gbp.format(totals.subtotal)} />
-                    <Metric label="VAT" value={gbp.format(totals.vat)} />
-                    <div className="rounded-xl bg-green-600 p-4 text-white"><div className="text-xs font-black uppercase">Final quote total</div><div className="text-3xl font-black">{gbp.format(totals.grandTotal)}</div></div>
+                  <Button onClick={printQuote}>Print / Save PDF</Button>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-start md:justify-between">
+                    <BrandLogo compact />
+                    <div className="text-sm text-slate-600 md:text-right">
+                      <div className="font-black text-slate-950">Internal Quote Breakdown</div>
+                      <div>{new Date().toLocaleDateString("en-GB")}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-5 lg:grid-cols-2">
+                    <QuoteSection title="Job Details">
+                      <SummaryRow label="Property Address" value={form.address} />
+                      <SummaryRow label="Postcode" value={form.postcode} />
+                      <SummaryRow label="Job / CRM Reference" value={form.jobNumber} />
+                      <SummaryRow label="Pricing Approach" value={form.pricingApproach} />
+                    </QuoteSection>
+
+                    <QuoteSection title="Quote Summary">
+                      <Metric label="Materials inc margin" value={gbp.format(totals.materialSell)} highlight />
+                      <Metric label="Labour inc margin" value={gbp.format(totals.labourSell)} highlight />
+                      <Metric label="Prelims & other" value={gbp.format(totals.prelimSell)} highlight />
+                      <div className="my-2 border-t border-slate-200" />
+                      <Metric label="Subtotal ex VAT" value={gbp.format(totals.subtotal)} />
+                      <Metric label="VAT" value={gbp.format(totals.vat)} />
+                      <div className="mt-3 rounded-lg bg-green-600 p-4 text-white">
+                        <div className="text-xs font-black uppercase">Total inc VAT</div>
+                        <div className="text-3xl font-black">{gbp.format(totals.grandTotal)}</div>
+                      </div>
+                      <Metric label="Estimated cost" value={gbp.format(totals.totalCost)} />
+                      <Metric label="Estimated profit" value={gbp.format(totals.profit)} highlight />
+                    </QuoteSection>
+
+                    <QuoteSection title="Scope of Works">
+                      <div className="grid gap-3">
+                        {form.workItems.map((item, index) => (
+                          <div key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div className="mb-1 text-xs font-black uppercase text-green-700">{index + 1}. {item.priority}</div>
+                            <div className="whitespace-pre-wrap text-sm text-slate-900">{item.description || "No description entered"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </QuoteSection>
+
+                    <QuoteSection title="Additional Observations — Not in Scope">
+                      <div className="whitespace-pre-wrap rounded-lg bg-amber-50 p-4 text-sm text-slate-900">{form.observations || "No additional observations entered"}</div>
+                    </QuoteSection>
+                  </div>
+
+                  <div className="mt-5 grid gap-5">
+                    <QuoteSection title="Materials Breakdown">
+                      <QuoteTable headers={["Description", "Qty", "Unit", "Unit cost", "Margin", "Line total"]}>
+                        {form.materials.map((item) => {
+                          const lineCost = toNumber(item.qty) * toNumber(item.unitCost);
+                          const lineTotal = withMargin(lineCost, item.margin);
+                          return (
+                            <tr key={item.id} className="border-t border-slate-100">
+                              <td className="px-3 py-3">{item.description || "-"}</td>
+                              <td className="px-3 py-3">{item.qty}</td>
+                              <td className="px-3 py-3">{item.unit}</td>
+                              <td className="px-3 py-3">{gbp.format(toNumber(item.unitCost))}</td>
+                              <td className="px-3 py-3">{item.margin}%</td>
+                              <td className="px-3 py-3 font-black text-green-700">{gbp.format(lineTotal)}</td>
+                            </tr>
+                          );
+                        })}
+                      </QuoteTable>
+                    </QuoteSection>
+
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <QuoteSection title="Labour Breakdown">
+                        <SummaryRow label="Skilled Labour" value={`${form.skilledOperatives} operative(s) × ${form.skilledDays} day(s) @ ${gbp.format(toNumber(form.skilledRate))} / day`} />
+                        <SummaryRow label="Unskilled Labour" value={`${form.unskilledOperatives} operative(s) × ${form.unskilledDays} day(s) @ ${gbp.format(toNumber(form.unskilledRate))} / day`} />
+                        <SummaryRow label="Labour Margin" value={`${form.labourMargin}%`} />
+                        <SummaryRow label="Labour Total Inc Margin" value={gbp.format(totals.labourSell)} />
+                      </QuoteSection>
+
+                      <QuoteSection title="Prelims & Other Breakdown">
+                        {form.prelims.map((item) => (
+                          <SummaryRow key={item.id} label={item.description || "Prelim item"} value={`${gbp.format(toNumber(item.amount))} + ${item.margin}% margin = ${gbp.format(withMargin(item.amount, item.margin))}`} />
+                        ))}
+                      </QuoteSection>
+                    </div>
                   </div>
                 </div>
-              </Panel>
+              </div>
             )}
 
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between no-print">
               <Button variant="secondary" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>← Back</Button>
-              {step < steps.length - 1 ? <Button onClick={() => setStep(Math.min(steps.length - 1, step + 1))}>Next: {steps[step + 1]} →</Button> : <Button onClick={submitToSheet} disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit to spreadsheet"}</Button>}
+              {step < steps.length - 1 ? <Button onClick={() => setStep(Math.min(steps.length - 1, step + 1))}>Next: {steps[step + 1]} →</Button> : <Button onClick={printQuote}>Print / Save PDF</Button>}
             </div>
           </section>
         </div>
       </div>
 
-      <footer className="mt-10 border-t border-slate-200 bg-white">
+      <footer className="mt-10 border-t border-slate-200 bg-white no-print">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo compact />
           <div className="text-sm text-slate-500 md:text-right">
